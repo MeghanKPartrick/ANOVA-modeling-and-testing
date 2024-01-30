@@ -1,0 +1,227 @@
+---
+title: 'ANOVA Modeling and Testing'
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+__Situation (again):__ Suppose that you are interested in purchasing a used car. How much should you expect to pay?  Obviously the price will depend on the type of car you get (the model) and how much it's been used. You will investigate how the price might depend on the age, mileage, and the model of car. 
+
+__Data Source:__ The data was acquired by scraping TrueCar.com for used car listings on 9/24/2017 and contains more than 1.2 million used cars. 
+
+You will need to select six new samples, each with _exactly_ 50 vehicles, for six different _Model_ of used vehicles for sale in North Carolina from the UsedCar dataset. The six models of vehicles should be selected such that three models of vehicles are selected from Japanese companies, and another three from US companies. Within each country, you should select a compact car, a mid-sized car, and a SUV (Note that the country and types of vehicles are not given in the data and are for you to determine). You should add new variables to the dataframes for the country of the company and type of vehicle (compact vs mid-sized vs SUV) and combine these six samples into one dataframe.
+
+
+```{r}
+library(readr)
+library(dplyr)
+
+UsedCars <- read_csv("UsedCars.csv")
+
+head(UsedCars)
+```
+
+
+```{r}
+set.seed(8675309)
+
+NCUsedCars_Chevrolet = subset(UsedCars, Make=='Chevrolet' & State=='NC')
+Equinox = sample_n(subset(NCUsedCars_Chevrolet, Model=='EquinoxAWD'), 50)
+Equinox$Country = 'USA'
+Equinox$Type = 'SUV'
+head(Equinox)
+
+NCUsedCars_Ford = subset(UsedCars, Make=='Ford' & State=='NC')
+Fusion = sample_n(subset(NCUsedCars_Ford, Model=='FusionSE'), 50)
+Fusion$Country = 'USA'
+Fusion$Type = 'Mid-Size'
+head(Fusion)
+
+Focus = sample_n(subset(NCUsedCars_Ford, Model=='FocusSE'), 50)
+Focus$Country = 'USA'
+Focus$Type = 'Compact'
+head(Focus)
+
+
+NCUsedCars_Honda = subset(UsedCars, Make=='Honda' & State=='NC')
+Civic = sample_n(subset(NCUsedCars_Honda, Model=='Civic'), 50)
+Civic$Country = 'Japan'
+Civic$Type = 'Compact'
+head(Civic)
+
+NCUsedCars_Toyota = subset(UsedCars, Make=='Toyota' & State=='NC')
+Camry = sample_n(subset(NCUsedCars_Toyota, Model=='CamrySE'), 50)
+Camry$Country = 'Japan'
+Camry$Type = 'Mid-Size'
+head(Camry)
+
+NCUsedCars_Nissan = subset(UsedCars, Make=='Nissan' & State=='NC')
+Rogue = sample_n(subset(NCUsedCars_Nissan, Model=='Rogue'), 50)
+Rogue$Country = 'Japan'
+Rogue$Type = 'SUV'
+head(Rogue)
+
+
+All_Cars <- rbind(Rogue, Camry, Civic, Focus, Fusion, Equinox)
+head(All_Cars)
+```
+
+
+#### One Way ANOVA ####    
+
+1.  Produce a set of side-by-side boxplots to compare the price distributions of your three types of vehicles (not the models). Comment on any obvious differences in the distributions. 
+
+```{r}
+boxplot(Price~factor(Type), data=All_Cars)
+```
+
+
+2.  Produce summary statistics (mean and standard deviation) for each of the groups (vehicle types) AND the entire sample of vehicle prices. 
+
+```{r}
+means = tapply(All_Cars$Price, All_Cars$Type, mean)
+means
+
+sds = tapply(All_Cars$Price, All_Cars$Type, sd)
+sds
+
+mean(All_Cars$Price)
+sd(All_Cars$Price)
+```
+
+
+3.  Based on just what you see in the boxplots and summary statistics comment on whether you think there are significant differences in the mean prices among your three vehicle types. Also comment on any concerns you see about the conditions for the ANOVA for means model.
+
+Yes, I believe that there could be a significant difference in the mean prices among the three vehicle types. I believe that the compact cars may be significantly different.
+The standard deviations look okay. The compact and SUV standard deviations are almost 2 times the mid-size standard deviation, but not quite so it is close, but passes the condition.
+
+4.  Construct an ANOVA model for the mean price by vehicle type. Include the output showing the ANOVA table; state hypotheses, and provide a conclusion in the context of your data. 
+
+```{r}
+mod1 = aov(Price~Type, data=All_Cars)
+summary(mod1)
+```
+
+The null hypothesis is that there is no difference in the mean price between types of vehicles. The alternative hypothesis is that there is at least one difference in the mean price between types of vehicles.  With a p-value of 5.66e-13, we have enough evidence to say that there is a difference in the mean price between types of vehicles.
+
+5.  Produce plots and/or summary statistics to comment on the appropriateness of the following conditions for your data: normality of the residuals, and equality of the variances. If you find that the conditions are _not_ met, You can still continue with analysis of your data for this homework. We will soon discuss how to deal with violations of these conditions.
+
+```{r}
+plot(mod1)
+```
+
+The constant variance condition is not met. As shown in the residuals vs.fitted plot, the mid-size vehicles have a much more compact/smaller spread (deviation) than the SUV and compact cars. The normality plot is also very skewed on the right end as shown in the normal q-q plot, which means that condition is not met either.
+    
+6.  If your ANOVA model indicates that there are significant differences among the vehicle type price means, discuss where the significant differences occur using Tukey HSD methods. If your ANOVA indicates there are not significant differences among the vehicle type price means, determine how different your means prices would need to be in order to find a significant difference using the Tukey HSD methods.
+
+```{r}
+TukeyHSD(mod1)
+```
+
+We can see that the differences within the compact cars and the other two types (mid-size and SUV) have the siginificant differences. So the compact cars seem to be where we see the difference in means.
+
+
+#### Two Way ANOVA ####
+
+7.  Construct an ANOVA model for the mean price using the country of the company and the type of vehicle as predictors (without an interaction). Include the output showing the ANOVA table; state hypotheses and provide a conclusion in the context of your data. If your ANOVA model indicates there are significant differences among the vehicle price means: Discuss where the significant differences occur using Tukey HSD methods.
+
+```{r}
+mod2 = aov(Price~Country + Type, data=All_Cars)
+summary(mod2)
+```
+
+The null hypothesis of this model is that there is no difference in mean prices between country and types of cars. The alternative hypothesis is that there is atleast one difference in mean prices between country and types of cars. The p-value of 0.189 tells us that there is not significant differences among countries, but the p-value of 5.36e-13 tells us that there is atleast one difference in mean prices between types of cars.
+
+```{r}
+TukeyHSD(mod2)
+```
+
+We can see that the significant differences occur, again, in within the compact vehicles. We know this because the p-value is 0. (Probably not actually 0, butit is so low that we cannot actually see the value)
+
+8.	Produce plots and/or summary statistics to comment on the appropriateness of the following conditions for your data: normality of the residuals, and equality of the variances. 
+
+```{r}
+plot(mod2)
+```
+
+The normality is highly skewed on the right end again, not meeting the condition. The variances show the same as before. Half of the variances seem to be very compact and low, while the other half seem to have a much wider spread. This is also an issue.
+
+9.  Construct an ANOVA model for the mean price using the country of the company and the type of vehicle as predictors with the interaction. Include the output showing the ANOVA table; state hypotheses and provide a conclusion in the context of your data. If your ANOVA indicates that there are significant differences among the car price means: Discuss where the significant differences occur using Tukey HSD methods.
+
+```{r}
+mod3 = aov(Price~Country + Type + Country*Type, data=All_Cars)
+summary(mod3)
+```
+
+The null hypothesis is that there is no difference in mean prices between country, type, and the interaction between the two. The alternative hypothesis is that there is atleast one difference in mean prices between country, type, or the interaction between the two. The p-value of 0.137 does not give us enough evidence to say that there is alteast one difference in mean prices between country in this model. The p-value of 4.05e-16 does give us enough evidence to say that there is alteast one difference in mean prices between type of cars in this model. The p-value of <2e-16 also gives us enough evidence to say that there is alteast one difference in mean prices between the interaction of type and country in this model.
+
+```{r}
+TukeyHSD(mod3)
+```
+
+As we can see, again the compact cars show significant mean differences with p-values nearly 0. The significant differences between the interactions seem to be mostly within the USA:compact cars (compact:US vs. compact:Japan; Japan:Mid-Size, USA:compact; USA:mid-size-USA:compact;Japan:SUV-USA:compact; USA:SUV-USA:compact), as well as all of the USA:SUV interactions (USA:SUV-Japan:SUV; USA:SUV-USA:mid-size;USA:SUV-Japan:Compact). 
+
+10. Produce two interaction plots for the previous model. If you found significant interactions in your hypothesis test, comment on how these interactions are shown in the plot. If you did not find significant interactions in your hypothesis test, comment on how the (lack of) interactions are shown in the plot.
+
+```{r}
+interaction.plot(All_Cars$Country, All_Cars$Type, All_Cars$Price)
+interaction.plot(All_Cars$Type, All_Cars$Country, All_Cars$Price)
+```
+
+This definitely supports the vlaues that I found before. I found all of my significant differences in both compact-USA and SUV-USA. As the graph shows, these vlaues are very far from the rest of them. The mid-size cars for Japan and USA both seem fiarly average. All of the Japanese vehicles seem to have much closer price values. 
+
+#### Additional Topics ####
+11. Recall that we can also handle a categorical predictor with multiple categories using ordinary multiple regression if we create indicator variables for each category and include all but one of the indicators in the model. Run an ordinary multiple regression to predict _Price_ using the country of the company, the type of vehicle, and the interaction between the two as predictors. Interpret each of the coefficients in the "dummy" regression by what they mean in the context of mean prices. 
+
+```{r}
+mod4 = lm(Price~Type + Country + Country*Type, data=All_Cars)
+summary(mod4)
+```
+
+The intercept would be the mean price value of a compact car from Japan. The Type mid-size and type SUV coefficients would change this mean price value into a mid-size or SUV price for a Japanese car. The country USA coefficient would change this mean price value into a compact car from USA. The type midsize:country USA and type suv: countryUSA would add onto the mean price value only if it was that exact type of car. So a mid-size:USA car would have that coefficient added to the intercept as well as the typemid-size and countryUSA coefficients.
+
+12. One possible drawback of the analysis for this assignment is that different people might have chosen vehicles with quite different mileages when collecting their samples.  Thus an apparent "difference" between two countries or vehicle types might be due to one sample having considerably more higher mileage vehicles in it than another. Construct a model that allows you to check for mean price differences between your vehicles from the model constructed in question 11 after accounting for variability due to the mileage of the vehicles. Explain how you use the output from the model to address this question.
+
+```{r}
+mod5 = lm(Price~Mileage + Type + Country + Type*Country, data=All_Cars)
+summary(mod5)
+
+anova(mod4, mod5)
+```
+
+
+There is significant evidence to tell us that mileage is a factor in this model for determining the price of the vehicles. This means that the difference between countries or vehicle types might be due to the mileage instead.
+
+```{r}
+CompactS = subset(All_Cars, All_Cars$Type=='Compact')
+SUVS = subset(All_Cars, All_Cars$Type=='SUV')
+Mid_SizeS = subset(All_Cars, All_Cars$Type=='Mid-Size')
+
+lmt1 = lm(Price~Mileage, data=CompactS)
+lmt2 = lm(Price~Mileage, data=SUVS)
+lmt3 = lm(Price~Mileage, data=Mid_SizeS)
+
+plot(Price~Mileage, data=All_Cars)
+abline(lmt1, col= 'orange')
+abline(lmt2, col='red')
+abline(lmt3, col='blue')
+```
+
+The orange line(compact cars) shows an obviously steeper slope than both the SUV and mid-size models. This follows the data since we could say the differences in the compact cars could have been due to this sample having different mileage of vehicles than the others.
+
+```{r}
+USAS = subset(All_Cars, All_Cars$Country=='USA')
+JapanS = subset(All_Cars, All_Cars$Country=='Japan')
+
+lmc1 = lm(Price~Mileage, data=USAS)
+lmc2 = lm(Price~Mileage, data=JapanS)
+
+
+plot(Price~Mileage, data=All_Cars)
+abline(lmc1, col= 'orange')
+abline(lmc2, col='red')
+```
+
+Both of these lines have very different slopes indicating that these countries interact differently with the variable of mileage. This could affect the differences in prices that we saw in our model.
